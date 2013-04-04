@@ -18,6 +18,7 @@ describe Parser1C do
       parser = Parser1C.new('1c_format_demo.txt')
       File.readable?(parser.file_path).should be_true
     end
+
   end
 
   context "Наличие обязательных параметров формата обмена" do
@@ -25,11 +26,11 @@ describe Parser1C do
       parser = Parser1C.new('1c_format_demo.txt')
       parser.parameters[:format_version].should_not == "" 
     end
-       it 'Кодировка обязательна' do
+    it 'Кодировка обязательна' do
       parser = Parser1C.new('1c_format_demo.txt')
       parser.parameters[:encoding].should_not == ""      
     end
-         it 'Программа - получатель обязательна' do
+    it 'Программа - получатель обязательна' do
       parser = Parser1C.new('1c_format_demo.txt')      
       parser.parameters[:recipient_program].should_not == ""      
     end
@@ -51,7 +52,7 @@ describe Parser1C do
       parser.documents[0][:doc_num].should == "123456"       
     end
 
-     it 'Номер второго документа должен присутвовать и соответствовать данным' do
+    it 'Номер второго документа должен присутвовать и соответствовать данным' do
       parser = Parser1C.new('1c_format_demo.txt')
       parser.documents[1][:doc_num].should == "123457"       
     end

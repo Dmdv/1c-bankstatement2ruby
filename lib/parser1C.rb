@@ -23,7 +23,7 @@ end
 
 def parse #здесь и происходит парсинг
 
-  @header_section_dictionary = { 
+  @header_section_dictionary = {     
     "ВерсияФормата" => :format_version,
     "Кодировка" => :encoding,
     "Получатель" => :recipient_program,
