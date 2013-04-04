@@ -6,28 +6,91 @@ class Parser1C
 
   attr_reader :file_name, :file_path, :parameters, :accounts, :documents
 
-@file_name = String.new  #имя входного файла
-@file_path = String.new  #полный путь к файлу
+  @file_name = String.new  #имя входного файла
+  @file_path = String.new  #полный путь к файлу
+  @source_array_content = Array.new #исходный массив строк из файла данных
+  
+  def initialize(filename)   
+  read_and_get_content(filename) #читаем контент из файла внутрь массива source_array_content
+  parse                #разбираем этот массив
+end
 
-
-def initialize(filename)
-   @file_name = 'kl_to_1c.txt' #умолчание для файла - имя из спецификации 1С 
-   @file_path = File.join(File.dirname( __FILE__ ), filename)
-   if filename && File.exist?(@file_path) 
-     @file_name = filename
-   end
-   parse()
- end
+def read_and_get_content(filename) #читает контент из файла в массив строк
+  @file_path = File.join(File.dirname( __FILE__ ), filename)
+  @file_name = filename if File.exist?(@file_path) 
+  @source_array_content = File.readlines(@file_path)
+end
 
 def parse #здесь и происходит парсинг
 
-@accounts = Hash.new     #рассчетные счета
-@parameters = Hash.new   #Шапка с параметрами передачи и т.д.
-@documents = Hash.new    #Документы
+  @header_section_dictionary = { 
+    "ВерсияФормата" => :format_version,
+    "Кодировка" => :encoding,
+    "Получатель" => :recipient_program,
+    "Отправитель" => :sender,
+    "ДатаСоздания" => :create_date,
+    "ВремяСоздания" => :create_time,
+    "ДатаНачала" => :date_begin,
+    "ДатаКонца" => :date_end,
+    "РасчСчет" => :accnum      
+  }
 
-converter= Iconv.new("UTF-8","WINDOWS-1251")
-temporary_account = Hash.new #поглощает в себя секцию рассчетного счета
-temporary_document = Hash.new #поглощает в себя секцию документа
+  @acc_section_dictionary = {
+    "ДатаНачала" => :interval_begin,
+    "ДатаКонца" => :interval_end,
+    "РасчСчет" => :number_acc,
+    "НачальныйОстаток" => :begin_cash,
+    "ВсегоПоступило" => :all_plus,
+    "ВсегоСписано" => :all_minus,
+    "КонечныйОстаток" => :balance            
+  }
+
+  @document_section_dictionary = {
+    "Дата" => :date,
+    "Номер" => :doc_num,
+    "Сумма" => :sum,      
+    "ПлательщикСчет" => :plat_acc,
+    "ДатаСписано" => :date_sp,
+    "ПлательщикРасчСчет" => :plat_r_acc,
+    "ПлательщикБИК" => :plat_bik,
+    "Плательщик" => :plat,
+    "ПлательщикИНН" => :plat_inn,
+    "ПлательщикКПП" => :plat_kpp,
+    "Плательщик1" => :plat1,
+    "ПлательщикБанк1" => :plat_bank1,
+    "ПлательщикКорсчет" => :plat_corr_acc,
+    "ПолучательСчет" => :pol_acc,
+    "ДатаПоступило" => :date_delivery,
+    "ПолучательРасчСчет" => :pol_r_acc,
+    "ПолучательБИК" => :pol_bik,
+    "Получатель" => :pol,
+    "ПолучательИНН" => :pol_inn,
+    "ПолучательКПП" => :pol_kpp,
+    "Получатель1" =>   :pol1,
+    "ПолучательБанк1" => :pol_bank1,
+    "ПолучательКорсчет" => :pol_corr_acc,
+    "ВидПлатежа" => :payment_type,
+    "ВидОплаты" => :payment_type_plata,
+    "СтатусСоставителя" => :state,
+    "ПоказательКБК" => :kbk,
+    "ОКАТО" => :okato,
+    "ПоказательОснования" => :pok_osn,
+    "ПоказательПериода" => :pok_period,
+    "ПоказательНомера" => :pok_number,
+    "ПоказательДаты" => :pok_date,
+    "ПоказательТипа" => :pok_type,
+    "СрокПлатежа" => :srok,
+    "Очередность" => :stackposition,
+    "НазначениеПлатежа" => :what_pay 
+  }
+  
+  @accounts = Hash.new     #рассчетные счета
+  @parameters = Hash.new   #Шапка с параметрами передачи и т.д.
+  @documents = Hash.new    #Документы
+
+  converter= Iconv.new("UTF-8","WINDOWS-1251")
+  temporary_account = Hash.new #поглощает в себя секцию рассчетного счета
+  temporary_document = Hash.new #поглощает в себя секцию документа
 
     #флаги секций
    in_acc_section = false      #СекцияРасчСчет
@@ -35,10 +98,9 @@ temporary_document = Hash.new #поглощает в себя секцию до�
    do_not_parse_header = false #пересекли ли мы хедер уже, флаг не дает затереть хедер дальнейшими директивами
     #конец флагов секций   
     
-    File.open(@file_path, "r") do |input|
-      input.each {|current_string_source|
-        current_string = converter.iconv(current_string_source).strip
-        
+    @source_array_content.each {|current_string_source|
+      current_string = converter.iconv(current_string_source).strip
+
     if current_string.include?('=') #если происходит уравнение, значит мы внутри некоей секции или шапки, и получаем некие параметры 
 
       current_pair = current_string.split('=')
@@ -48,82 +110,32 @@ temporary_document = Hash.new #поглощает в себя секцию до�
       
       #если мы в секции рассчетного счета
       if in_acc_section   
-        case req
-        when "ДатаНачала" then temporary_account[:interval_begin] = req_value
-        when "ДатаКонца" then  temporary_account[:interval_end]   = req_value
-        when "РасчСчет" then temporary_account[:number_acc] = req_value
-        when "НачальныйОстаток" then temporary_account[:begin_cash] = req_value
-        when "ВсегоПоступило" then temporary_account[:all_plus] = req_value
-        when "ВсегоСписано" then temporary_account[:all_minus] = req_value
-        when "КонечныйОстаток" then  temporary_account[:balance] = req_value
-        end
+       @acc_section_dictionary.each {|key,val|
+       temporary_account[val] = req_value if req === key 
+       }
         #конец варианта секции рассчетного счета
-      
+
       #если входим в секцию документа
-      elsif !in_document_section && req == "СекцияДокумент"
+    elsif !in_document_section && req == "СекцияДокумент"
       temporary_document[:type] = req_value
       in_document_section = true      
- 
       #конец варианта входа в секцию документа
       
       #если мы внутри секции документа
-      elsif in_document_section
-        case req
-        when "Дата"  then temporary_document[:date] = req_value
-        when "Номер" then temporary_document[:doc_num] = req_value
-        when "Сумма" then temporary_document[:sum] = req_value
-        when "ПлательщикСчет" then temporary_document[:plat_acc] = req_value   
-        when "ДатаСписано" then temporary_document[:date_sp] = req_value   
-        when "ПлательщикРасчСчет" then temporary_document[:plat_r_acc] = req_value   
-        when "ПлательщикБИК" then temporary_document[:plat_bik] = req_value   
-        when "Плательщик" then temporary_document[:plat] = req_value
-        when "ПлательщикИНН" then temporary_document[:plat_inn] = req_value   
-        when "ПлательщикКПП" then temporary_document[:plat_kpp] = req_value   
-        when "Плательщик1" then temporary_document[:plat1] = req_value     
-        when "ПлательщикБанк1" then temporary_document[:plat_bank1] = req_value
-        when "ПлательщикКорсчет" then temporary_document[:plat_corr_acc] = req_value
-        when "ПолучательСчет" then temporary_document[:pol_acc] = req_value
-        when "ДатаПоступило" then temporary_document[:date_delivery] = req_value
-        when "ПолучательРасчСчет" then temporary_document[:pol_r_acc] = req_value
-        when "ПолучательБИК" then temporary_document[:pol_bik] = req_value      
-        when "Получатель" then temporary_document[:pol] = req_value
-        when "ПолучательИНН" then temporary_document[:pol_inn] = req_value
-        when "ПолучательКПП" then temporary_document[:pol_kpp] = req_value
-        when "Получатель1" then temporary_document[:pol1] = req_value
-        when "ПолучательБанк1" then temporary_document[:pol_bank1] = req_value
-        when "ПолучательКорсчет" then temporary_document[:pol_corr_acc] = req_value
-        when "ВидПлатежа" then temporary_document[:payment_type] = req_value
-        when "ВидОплаты" then temporary_document[:payment_type_plata] = req_value
-        when "СтатусСоставителя" then temporary_document[:state] = req_value
-        when "ПоказательКБК" then temporary_document[:kbk] = req_value
-        when "ОКАТО" then temporary_document[:okato] = req_value
-        when "ПоказательОснования" then temporary_document[:pok_osn] = req_value
-        when "ПоказательПериода" then temporary_document[:pok_period] = req_value
-        when "ПоказательНомера" then temporary_document[:pok_number] = req_value
-        when "ПоказательДаты" then temporary_document[:pok_date] = req_value  
-        when "ПоказательТипа" then temporary_document[:pok_type] = req_value 
-        when "СрокПлатежа" then temporary_document[:srok] = req_value
-        when "Очередность" then temporary_document[:stackposition] = req_value
-        when "НазначениеПлатежа" then temporary_document[:what_pay] = req_value
-        end
+    elsif in_document_section
+      @document_section_dictionary.each { |key,val| 
+      temporary_document[val] = req_value if req === key
+      }
       #конец варианта нахождения внутри секции документа  
       
-        
-      elsif unless do_not_parse_header
-        case req
-        when "ВерсияФормата" then @parameters[:format_version] = req_value
-        when "Кодировка"     then @parameters[:encoding] = req_value
-        when "Получатель"    then @parameters[:recipient_program] = req_value  
-        when "Отправитель"   then @parameters[:sender] = req_value
-        when "ДатаСоздания"  then @parameters[:create_date] = req_value
-        when "ВремяСоздания" then @parameters[:create_time] = req_value
-        when "ДатаНачала"    then @parameters[:date_begin]  = req_value
-        when "ДатаКонца"     then @parameters[:date_end] = req_value
-        when "РасчСчет"      then @accounts[req_value.to_s] = {:accnum => req_value} 
-        #строк РасчСчет может быть несколько, такая же встречается в секции СекцияРасчСчет, надо проверять флаг        
-      end    
-    end    
-  end      
+
+    elsif unless do_not_parse_header          
+      @header_section_dictionary.each { |key,val| 
+       @accounts[req_value.to_s] = {:accnum => req_value} if req === "РасчСчет"
+       @parameters[val] = req_value if req === key
+     }                       
+   end    
+ end      
 
  else #если встречаем одиночные директивы секций     
   case current_string 
@@ -150,11 +162,4 @@ temporary_document = Hash.new #поглощает в себя секцию до�
    end
  }
 end
-end
-
-def print_debug_state #отладочный метод
-  
-end
-
-
 end
