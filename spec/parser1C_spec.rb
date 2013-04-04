@@ -36,87 +36,35 @@ describe Parser1C do
   end
   
   context "Правильность логики парсинга" do
-    it 'Баланс рассчетного счета должен браться' do
+    it 'Рассчетный счет должен быть взят в количестве 1' do
       parser = Parser1C.new('1c_format_demo.txt')
-      parser.accounts["10203450600780000090"][:parameters][:balance].should == "90001.00"     
-    end  
-  end
-
-  context "Отладочный вывод информации для сверки" do
-    it "Выводим информацию о документе" do
-      parser = Parser1C.new('1c_format_demo.txt')
-      puts "###################################################################"
-      puts "Номер версии формата обмена : #{parser.parameters[:format_version]}"
-      puts "Кодировка файла :             #{parser.parameters[:encoding]}"
-      puts "Программа-получатель :        #{parser.parameters[:recipient_program]}"
-      puts "Отправитель :                 #{parser.parameters[:sender]}"
-      puts "Дата формирования файла  :    #{parser.parameters[:create_date]}"
-      puts "Время формирования файла :    #{parser.parameters[:create_time]}"
-      puts "Дата начала интервала    :    #{parser.parameters[:date_begin]}"
-      puts "Дата конца интервала     :    #{parser.parameters[:date_end]}"
-      puts ""
-      
-      parser.accounts.keys.each { |key|
-        puts "Присутствует рассчетный счет : #{key}"
-        puts "--------------------------счет #{key}----------------------------"
-        puts "Дата начала интервала :              #{parser.accounts[key.to_s][:parameters][:interval_begin]}" 
-        puts "Дата конца  интервала :              #{parser.accounts[key.to_s][:parameters][:interval_end]}"
-        puts "Начальный остаток :                  #{parser.accounts[key.to_s][:parameters][:begin_cash]}"
-        puts "Обороты входящих платежей :          #{parser.accounts[key.to_s][:parameters][:all_plus]}"
-        puts "Обороты исходящих платежей :         #{parser.accounts[key.to_s][:parameters][:all_minus]}"
-        puts "Конечный остаток :                   #{parser.accounts[key.to_s][:parameters][:balance]}"
-        puts "---------------------конец счета #{key}--------------------------"
-        puts ""
-        }
-        
-      parser.documents.keys.each { |key|
-        puts "Присутствует документ номер : #{key}"
-        puts ""
-        puts "--------------------------Документ #{key}----------------------------"
-        puts "Вид документа :              #{parser.documents[key.to_s][:parameters][:type]}" 
-        puts "Номер документа :            #{parser.documents[key.to_s][:parameters][:doc_num]}"
-        puts "Дата документа :             #{parser.documents[key.to_s][:parameters][:date]}"
-        puts "Сумма платежа :              #{parser.documents[key.to_s][:parameters][:sum]}"
-        puts "Расчетный счет плательщика : #{parser.documents[key.to_s][:parameters][:plat_acc]}"
-        puts "Дата списания средств с р/с: #{parser.documents[key.to_s][:parameters][:date_sp]}"
-        puts "Расчетный счет плательщика:  #{parser.documents[key.to_s][:parameters][:plat_r_acc]}"
-        puts "БИК банка плательщика:       #{parser.documents[key.to_s][:parameters][:plat_bik]}"
-        puts "Плательщик:                  #{parser.documents[key.to_s][:parameters][:plat]}"
-        puts "ИНН плательщика              #{parser.documents[key.to_s][:parameters][:plat_inn]}"
-        puts "КПП плательщика              #{parser.documents[key.to_s][:parameters][:plat_kpp]}"
-        puts "Наименование плательщика, стр.1: #{parser.documents[key.to_s][:parameters][:plat1]}"
-        puts "Банк плательщика             #{parser.documents[key.to_s][:parameters][:plat_bank1]}"
-        puts "Корсчет банка плательщика    #{parser.documents[key.to_s][:parameters][:plat_corr_acc]}"
-        puts "Расчетный счет получателя    #{parser.documents[key.to_s][:parameters][:pol_acc]}"
-        puts "Дата поступления средств на р/с #{parser.documents[key.to_s][:parameters][:date_delivery]}"
-        puts "Расчетный счет получателя    #{parser.documents[key.to_s][:parameters][:pol_r_acc]}"
-        puts "БИК банка получателя         #{parser.documents[key.to_s][:parameters][:pol_bik]}"
-        puts "Получатель                   #{parser.documents[key.to_s][:parameters][:pol]}"
-        puts "ИНН получателя               #{parser.documents[key.to_s][:parameters][:pol_inn]}"
-        puts "КПП получателя               #{parser.documents[key.to_s][:parameters][:pol_kpp]}"
-        puts "Наименование получателя      #{parser.documents[key.to_s][:parameters][:pol1]}"
-        puts "Банк получателя              #{parser.documents[key.to_s][:parameters][:pol_bank1]}"
-        puts "Корсчет банка получателя     #{parser.documents[key.to_s][:parameters][:pol_corr_acc]}"
-        puts "Вид платежа                  #{parser.documents[key.to_s][:parameters][:payment_type]}"
-        puts "Вид оплаты (вид операции)    #{parser.documents[key.to_s][:parameters][:payment_type_plata]}"
-        puts "Статус составителя расчетного документа  #{parser.documents[key.to_s][:parameters][:state]}"
-        puts "Показатель кода бюджетной классификации  #{parser.documents[key.to_s][:parameters][:kbk]}"
-        puts "ОКАТО                        #{parser.documents[key.to_s][:parameters][:okato]}"
-        puts "Показатель основания налогового платежа #{parser.documents[key.to_s][:parameters][:pok_osn]}"
-        puts "Показатель налогового периода / Код таможенного органа #{parser.documents[key.to_s][:parameters][:pok_period]}"
-        puts "Показатель номера документа  #{parser.documents[key.to_s][:parameters][:pok_number]}"
-        puts "Показатель даты документа    #{parser.documents[key.to_s][:parameters][:pok_date]}"
-        puts "Показатель типа платежа      #{parser.documents[key.to_s][:parameters][:pok_type]}"
-        puts "Срок платежа (аккредитива)   #{parser.documents[key.to_s][:parameters][:srok]}"
-        puts "Очередность платежа          #{parser.documents[key.to_s][:parameters][:stackposition]}"
-        puts "Назначение платежа           #{parser.documents[key.to_s][:parameters][:what_pay]}"
-        puts "---------------------конец документа #{key}--------------------------"
-        puts ""
-        puts ""
-        }   
-      
-      puts "###################################################################"
+      parser.accounts.count.should == 1           
     end
-  end
+
+    it 'Документы должны быть взяты в количестве 2 штуки' do
+      parser = Parser1C.new('1c_format_demo.txt')
+      parser.documents.count.should == 2           
+    end
+
+    it 'Номер первого документа должен присутвовать и соответствовать данным' do
+      parser = Parser1C.new('1c_format_demo.txt')
+      parser.documents[0][:doc_num].should == "123456"       
+    end
+
+     it 'Номер второго документа должен присутвовать и соответствовать данным' do
+      parser = Parser1C.new('1c_format_demo.txt')
+      parser.documents[1][:doc_num].should == "123457"       
+    end
+
+    it 'Баланс рассчетного счета должен браться правильно' do
+      parser = Parser1C.new('1c_format_demo.txt')
+      parser.accounts[0][:balance].should == "90001.00"           
+    end  
+
+    it 'Параметры у каких пустое значение, должны быть в структуре, но иметь значение nil' do
+      parser = Parser1C.new('1c_format_demo.txt')
+      parser.documents[0][:okato].should be_nil
+    end  
+  end  
 
 end

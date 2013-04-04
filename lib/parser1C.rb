@@ -84,12 +84,12 @@ def parse #здесь и происходит парсинг
     "НазначениеПлатежа" => :what_pay 
   }
   
-  @accounts = Hash.new     #рассчетные счета
+  @accounts = Array.new    #рассчетные счета
   @parameters = Hash.new   #Шапка с параметрами передачи и т.д.
-  @documents = Hash.new    #Документы
+  @documents = Array.new   #Документы
 
   converter= Iconv.new("UTF-8","WINDOWS-1251")
-  temporary_account = Hash.new #поглощает в себя секцию рассчетного счета
+  temporary_account = Hash.new  #поглощает в себя секцию рассчетного счета
   temporary_document = Hash.new #поглощает в себя секцию документа
 
     #флаги секций
@@ -104,15 +104,14 @@ def parse #здесь и происходит парсинг
     if current_string.include?('=') #если происходит уравнение, значит мы внутри некоей секции или шапки, и получаем некие параметры 
 
       current_pair = current_string.split('=')
-      req = current_pair.first.strip       
-      req_value = current_pair.last.strip 
-      
-      
-      #если мы в секции рассчетного счета
-      if in_acc_section   
-       @acc_section_dictionary.each {|key,val|
+      req = current_pair.first.strip
+      req_value = (current_pair.count == 1) ? nil : current_pair.last.strip #если пустое значение но оно указано в файле, делаем его nil
+
+   #если мы в секции рассчетного счета
+   if in_acc_section   
+     @acc_section_dictionary.each {|key,val|
        temporary_account[val] = req_value if req === key 
-       }
+     }
         #конец варианта секции рассчетного счета
 
       #если входим в секцию документа
@@ -124,14 +123,13 @@ def parse #здесь и происходит парсинг
       #если мы внутри секции документа
     elsif in_document_section
       @document_section_dictionary.each { |key,val| 
-      temporary_document[val] = req_value if req === key
+        temporary_document[val] = req_value if req === key
       }
       #конец варианта нахождения внутри секции документа  
       
 
     elsif unless do_not_parse_header          
-      @header_section_dictionary.each { |key,val| 
-       @accounts[req_value.to_s] = {:accnum => req_value} if req === "РасчСчет"
+      @header_section_dictionary.each { |key,val|        
        @parameters[val] = req_value if req === key
      }                       
    end    
@@ -145,16 +143,13 @@ def parse #здесь и происходит парсинг
       do_not_parse_header = true if current_string == "СекцияРасчСчет" #флаг чтобы хедер не перезаписывался
       #перебрасываем готовую секцию рассчетного счета если наткнулись на конец такой секции:      
       if current_string == "КонецРасчСчет"
-        @accounts[temporary_account[:number_acc].to_s][:parameters] = Hash.new
-        @accounts[temporary_account[:number_acc].to_s][:parameters] = temporary_account.clone                          
-      temporary_account.clear #очищаем для страховки хеш чтобы старые данные не вкраплялись в новую секцию расс. счета                           
+       @accounts << temporary_account.clone                          
+       temporary_account.clear #очищаем для страховки хеш чтобы старые данные не вкраплялись в новую секцию расс. счета                           
     end
     
     if current_string == "КонецДокумента" && in_document_section
        #перебрасываем готовый документ в хранилище, так как секция кончилась. Считаем ID документа его поле "Номер"
-       @documents[temporary_document[:doc_num].to_s] = Hash.new
-       @documents[temporary_document[:doc_num].to_s][:parameters] = Hash.new
-       @documents[temporary_document[:doc_num].to_s][:parameters] = temporary_document.clone
+       @documents << temporary_document.clone
        temporary_document.clear #очищаем во избежания затирания данных или замещения другими        
        in_document_section = false #вышли из секции документа
      end
